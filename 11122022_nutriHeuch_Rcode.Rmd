@@ -1,0 +1,1229 @@
+---
+title: "Heuchera"
+author: "ThomasAnnebeerg"
+date: "4/16/2020"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set
+setwd("~/Desktop/Heuchera R data")
+library(car)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(tidyverse)
+library(caret)
+library(factoextra)
+gassed_control_nutriHeuch<-read.csv("04132020_2x_v_2xG_nutriHeuch.csv",header=T,na.strings="",stringsAsFactors =F) 
+gassed_control_phosphorus<-read.csv("04132020_2x_v_2xG_phosphorus.csv")
+gassed_control_nitrogen<-read.csv("04132020_2x_v_2xG_CN_heuchera.csv")
+nutri_heuch_nogas<-read.csv("04132020_NUTRI_heuch_wo2xG_v4.csv")
+heuch_CN_nogas<-read.csv("04132020_CN_heuch_wo2xG_v2.csv")
+heuch_phos_nogas<-read.csv("05042020_nutriheuch_final_phosphorus_wo2xG_v2.csv")
+nutri_heuch_roots<-read.csv("05052020_nutriheuch_roots_final_v2_wo2xG.csv")
+nutri_heuch_nogas_wo4xest<-read.csv("05112020_NUTRI_heuch_wo2xG_wo4xest.csv")
+```
+
+
+
+```{r echo=TRUE}
+gassed_control_nutriHeuch$total_biomass_g<-as.numeric(gassed_control_nutriHeuch$total_biomass_g)
+gassed_control_nutriHeuch$normalized_aboveground_mass<-as.numeric(gassed_control_nutriHeuch$normalized_aboveground_mass)
+gassed_control_nutriHeuch$normalized_rhizome_mass<-as.numeric(gassed_control_nutriHeuch$normalized_rhizome_mass)
+gassed_control_nutriHeuch$normalized_fine_roots_mass<-as.numeric(gassed_control_nutriHeuch$normalized_fine_roots_mass)
+gassed_control_nutriHeuch$avg_chlorophyll<-as.numeric(gassed_control_nutriHeuch$avg_chlorophyll)
+gassed_control_nutriHeuch$avg_DMC<-as.numeric(gassed_control_nutriHeuch$avg_DMC)
+gassed_control_nutriHeuch$avg_SLA<-as.numeric(gassed_control_nutriHeuch$avg_SLA)
+
+leveneTest(log(gassed_control_nutriHeuch$total_biomass_g)~Treatment*Cytotype*Population, data=gassed_control_nutriHeuch)
+
+leveneTest(asin(sqrt(normalized_aboveground_mass))~Treatment*Cytotype*Population, data=gassed_control_nutriHeuch)
+
+leveneTest(asin(sqrt(normalized_rhizome_mass))~Treatment*Cytotype*Population, data=gassed_control_nutriHeuch)
+
+leveneTest(asin(sqrt(normalized_fine_roots_mass))~Treatment*Cytotype*Population, data=gassed_control_nutriHeuch)
+
+leveneTest(log(avg_chlorophyll)~Treatment*Cytotype*Population, data=gassed_control_nutriHeuch)
+
+leveneTest(gassed_control_nutriHeuch$avg_DMC~Treatment*Cytotype*Population, data=gassed_control_nutriHeuch)
+
+leveneTest(gassed_control_nutriHeuch$avg_SLA~Treatment*Cytotype*Population, data=gassed_control_nutriHeuch)
+```
+
+
+
+```{r echo=FALSE, warning=FALSE}
+leveneTest((log(total_biomass_g))~Treatment*Cytotype*Population,data = nutri_heuch_nogas)
+
+leveneTest(normalized_fine_roots_mass~Treatment*Cytotype*Population,data = nutri_heuch_nogas)
+
+leveneTest(((normalized_rhizome_mass))~Treatment*Cytotype*Population,data = nutri_heuch_nogas)
+
+leveneTest(nutri_heuch_nogas$avg_chlorophyll~Treatment*Cytotype*Population,data = nutri_heuch_nogas)
+
+leveneTest(nutri_heuch_nogas$avg_DMC~Treatment*Cytotype*Population,data = nutri_heuch_nogas)
+
+leveneTest(avg_SLA~Treatment*Cytotype*Population,data = nutri_heuch_nogas)
+
+```
+
+```{r}
+qqPlot(asin(sqrt(nutri_heuch_nogas$normalized_rhizome_mass)))
+
+```
+
+
+```{r manova}
+nutri_heuch_nogas<-nutri_heuch_nogas[!is.na(nutri_heuch_nogas$normalized_fine_roots_mass),]
+nutri_heuch_nogas$log_Total_biomass_g<-log(nutri_heuch_nogas$total_biomass_g)
+nutri_heuch_nogas$asinSQ_rhizome<-asin(sqrt(nutri_heuch_nogas$normalized_rhizome_mass))
+
+#Make a matrix of response variables
+nutri_heuch_matrix<-as.matrix(nutri_heuch_nogas[,c("log_Total_biomass_g","normalized_aboveground_mass","normalized_fine_roots_mass","asinSQ_rhizome","avg_chlorophyll","avg_SLA","avg_DMC")])
+
+
+nutri_heuch_nogas$Cytotype<-as.factor(nutri_heuch_nogas$Cytotype)
+nutri_heuch_nogas$Population<-as.factor(nutri_heuch_nogas$Population)
+nutri_heuch_nogas$Treatment<-as.factor(nutri_heuch_nogas$Treatment)
+
+nutri_heuch_manova<-manova(nutri_heuch_matrix~Treatment*Cytotype*Population,data=nutri_heuch_nogas)
+
+summary(nutri_heuch_manova)
+
+summary.aov(nutri_heuch_manova)
+
+```
+
+```{r univariate stats}
+#"log_Total_biomass_g","normalized_aboveground_mass","normalized_fine_roots_mass","asinSQ_rhizome","avg_chlorophyll","avg_SLA","avg_DMC"
+
+
+```
+
+
+```{r}
+gassed_control_nutriHeuch$log_Total_biomass_g<-log(gassed_control_nutriHeuch$total_biomass_g)
+gassed_control_nutriHeuch$asinSQ_rhizome<-asin(sqrt(gassed_control_nutriHeuch$normalized_rhizome_mass))
+gassed_control_nutriHeuch$asinSQ_aboveground<-asin(sqrt(gassed_control_nutriHeuch$normalized_aboveground_mass))
+gassed_control_nutriHeuch$asinSQ_fine_roots<-asin(sqrt(gassed_control_nutriHeuch$normalized_fine_roots_mass))
+gassed_control_nutriHeuch$log_chlorophyll<-log(gassed_control_nutriHeuch$avg_chlorophyll)
+
+#Make a matrix of response variables
+gassed_control_matrix<-as.matrix(gassed_control_nutriHeuch[,c("log_Total_biomass_g","asinSQ_aboveground","asinSQ_fine_roots","asinSQ_rhizome","log_chlorophyll","avg_SLA","avg_DMC")])
+
+
+gassed_control_nutriHeuch$Cytotype<-as.factor(gassed_control_nutriHeuch$Cytotype)
+gassed_control_nutriHeuch$Population<-as.factor(gassed_control_nutriHeuch$Population)
+gassed_control_nutriHeuch$Treatment<-as.factor(gassed_control_nutriHeuch$Treatment)
+
+gassed_control_manova<-manova(gassed_control_matrix~Treatment*Cytotype,data=gassed_control_nutriHeuch)
+
+summary(gassed_control_manova)
+
+summary.aov(gassed_control_manova)
+```
+
+```{r}
+gassed_control_nutriHeuch$Treatment<-factor(gassed_control_nutriHeuch$Treatment,levels = c("L","C","H"))
+
+gas_control_plot<-ggplot(gassed_control_nutriHeuch,aes(x=Treatment,y=asinSQ_rhizome,shape=Cytotype, color=Cytotype))+geom_boxplot(lwd=1.1)+geom_point(position = position_dodge(width = 0.8))+theme(text = element_text(size=14))+theme(panel.spacing.x= unit(0.5,"line"))+theme(axis.text = element_text(size = 16))+theme(plot.title = element_text(face = "bold",size = 16))
+
+gas_control_plot
+```
+
+
+```{r PCA}
+nutri_heuch_nogas2 <- nutri_heuch_nogas %>% filter_at(vars("normalized_rhizome_mass","normalized_aboveground_mass","avg_SLA","avg_DMC","avg_chlorophyll","normalized_fine_roots_mass"),all_vars(!is.na(.)))
+
+nutri_heuch_nogas2$CytotypeXNutrient <-paste(nutri_heuch_nogas2$Cytotype, nutri_heuch_nogas2$Treatment,sep=" ")
+
+
+nutriheuch_pr<-prcomp(na.omit(nutri_heuch_nogas2[c("normalized_rhizome_mass","normalized_aboveground_mass","avg_SLA","avg_DMC","avg_chlorophyll","normalized_fine_roots_mass")]),center = TRUE, scale = TRUE)
+
+summary(nutriheuch_pr)
+
+screeplot(nutriheuch_pr, type = "l", npcs = 15, main = "Screeplot of the first 10 PCs")
+abline(h = 1, col="red", lty=5)
+legend("topright", legend=c("Eigenvalue = 1"),
+       col=c("red"), lty=5, cex=0.6)
+
+cumpro <- cumsum(nutriheuch_pr$sdev^2 / sum(nutriheuch_pr$sdev^2))
+plot(cumpro[0:15], xlab = "PC #", ylab = "Amount of explained variance", main = "Cumulative variance plot")
+abline(v = 4, col="blue", lty=5)
+abline(h = 0.88759, col="blue", lty=5)
+legend("topleft", legend=c("Cut-off @ PC4"),
+       col=c("blue"), lty=5, cex=0.6)
+
+plot(nutriheuch_pr$x[,1],nutriheuch_pr$x[,2], xlab="PC1 (41.9%)", ylab = "PC2 (23.8%)", main = "PC1 / PC2 - plot")
+
+fviz_pca_ind(nutriheuch_pr, geom.ind = "point", pointshape = 21, 
+             pointsize = 2, 
+             fill.ind = nutri_heuch_nogas2$Cytotype, 
+             col.ind = "black", 
+             palette = "jco", 
+             addEllipses = TRUE,
+             label = "var",
+             col.var = "black",
+             repel = TRUE,
+             legend.title = "Cytotype") +
+  ggtitle("2D PCA-plot from functional trait data") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+fviz_pca_biplot(nutriheuch_pr, repel = TRUE,
+                col.var = "#2E9FDF", # Variables color
+                col.ind = "#696969"  # Individuals color
+                )
+
+fviz_pca_biplot(nutriheuch_pr, repel=TRUE, pointsize=2,label = "var", pointshape=21, col.var="black", arrowsize=0.6,  col.ind=nutri_heuch_nogas2$Cytotype, palette=c("darkgoldenrod3","limegreen","grey"), addEllipses=FALSE)
+
+barplot(nutriheuch_pr$rotation[,1], main="PC 1 Loadings Plot", las=2)
+
+n.pc1 <- ifelse(nutriheuch_pr$rotation[,1] > 0, yes=-0.01, no=nutriheuch_pr$rotation[,1]-0.01)
+n.pc2 <- ifelse(nutriheuch_pr$rotation[,2] > 0, -0.01, nutriheuch_pr$rotation[,2]-0.01)
+n.pc3 <- ifelse(nutriheuch_pr$rotation[,3] > 0, -0.01, nutriheuch_pr$rotation[,3]-0.01)
+c.pc1 <- ifelse(nutriheuch_pr$rotation[,1] > 0, yes="green2", no="red2")
+c.pc2 <- ifelse(nutriheuch_pr$rotation[,2] > 0, "green2", "red2")
+c.pc3 <- ifelse(nutriheuch_pr$rotation[,3] > 0, "green2", "red2")
+old.par <- par(mar = c(0, 0, 0, 0))
+par(old.par)
+b1 <- barplot(nutriheuch_pr$rotation[,1], main="PC 1 Loadings Plot", col=c.pc1, las=2, axisnames=TRUE)+abline(h=0)
+b2 <- barplot(nutriheuch_pr$rotation[,2], main="PC 2 Loadings Plot", col=c.pc2, las=2, axisnames=TRUE)+abline(h=0)
+b3 <- barplot(nutriheuch_pr$rotation[,3], main="PC 3 Loadings Plot", col=c.pc3, las=2, axisnames=TRUE)+abline(h=0)
+
+fviz_pca_ind(nutriheuch_pr, geom.ind = "point", pointshape = 21, 
+             pointsize = 2, 
+             fill.ind = nutri_heuch_nogas2$Treatment, 
+             col.ind = "black", 
+             palette = "jco", 
+             addEllipses = TRUE,
+             label = "var",
+             col.var = "black",
+             repel = TRUE,
+             legend.title = "Cytotype") +
+  ggtitle("2D PCA-plot from functional trait data") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+fviz_pca_ind(nutriheuch_pr, geom.ind = "point", pointshape = 21, 
+             pointsize = 2, 
+             fill.ind = nutri_heuch_nogas2$CytotypeXNutrient, 
+             col.ind = "black", 
+             palette = "jco", 
+             addEllipses = TRUE,
+             label = "var",
+             col.var = "black",
+             repel = TRUE,
+             legend.title = "Cytotype") +
+  ggtitle("2D PCA-plot from functional trait data") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+nutriheuch_princomps<-nutriheuch_pr$x
+nutri_heuch_nogas_loadings<-cbind(nutri_heuch_nogas2,nutriheuch_pr$x[,1:3])
+
+nutriheuch_trait_dist<-vegdist(nutri_heuch_nogas2[c("total_biomass_g","normalized_rhizome_mass","normalized_aboveground_mass","avg_SLA","avg_DMC","avg_chlorophyll","normalized_fine_roots_mass")],method="euclidean")
+
+set.seed(8675309)
+nutriheuch_perm<-adonis2(nutriheuch_trait_dist ~ Treatment*Cytotype*Population,method = "euclidean",permutations = 10000, data = nutri_heuch_nogas2,parallel=3)
+
+(nutriheuch_perm)
+#nutri_heuch_growthPC<-lm(total_biomass_g~Treatment*Cytotype*PC1*PC2*PC3,data=nutri_heuch_nogas_loadings)
+#anova(nutri_heuch_growthPC)
+set.seed(1991)
+pairwise.adonis2(nutriheuch_trait_dist ~ Cytotype*Population*Treatment,data = nutri_heuch_nogas2,nperm = 999)
+```
+
+
+```{r LDA}
+#subset main dataframe to exclude irrelevant variables
+nutri_heuch_nogas3<-select(nutri_heuch_nogas2,Population,Plant_ID,normalized_fine_roots_mass,normalized_rhizome_mass,normalized_aboveground_mass,total_biomass_g,avg_SLA,avg_DMC,avg_chlorophyll,Cytotype,Treatment)
+
+#Split the data into training (80%) and test set (20%)
+set.seed(123)
+training.samples <- nutri_heuch_nogas2$Cytotype %>%
+  createDataPartition(p = 0.8, list = FALSE)
+train.data <- nutri_heuch_nogas3[training.samples, ]
+test.data <- nutri_heuch_nogas3[-training.samples, ]
+
+# Estimate preprocessing parameters
+preproc.param <- train.data %>% 
+  preProcess(method = c("center", "scale"))
+# Transform the data using the estimated parameters
+train.transformed <- preproc.param %>% predict(train.data)
+test.transformed <- preproc.param %>% predict(test.data)
+
+
+```
+
+
+
+```{r}
+ggplot(nutri_heuch_nogas,aes(x=Treatment, y=nutri_heuch_nogas$total_biomass_g,fill=Cytotype))+ylab("Total Biomass (g)")+ geom_boxplot()+theme_classic()
+
+ggplot(nutri_heuch_nogas,aes(x=Treatment, y=nutri_heuch_nogas$normalized_aboveground_mass,fill=Cytotype))+ylab("Normalized Aboveground Biomass")+geom_boxplot()+theme_classic()
+
+ggplot(nutri_heuch_nogas,aes(x=Treatment, y=nutri_heuch_nogas$normalized_rhizome_mass,fill=Cytotype))+ylab("Normalized Rhizome Biomass")+geom_boxplot()+theme_classic()
+
+ggplot(nutri_heuch_nogas,aes(x=Treatment, y=nutri_heuch_nogas$normalized_fine_roots_mass,fill=Cytotype))+ylab("Normalized Fine Root Biomass")+geom_boxplot()+theme_classic()
+
+ggplot(nutri_heuch_nogas,aes(x=Treatment, y=nutri_heuch_nogas$avg_chlorophyll,fill=Cytotype))+ylab("Average Chlorophyll")+geom_boxplot()+theme_classic()
+
+ggplot(nutri_heuch_nogas,aes(x=Treatment, y=nutri_heuch_nogas$avg_DMC,fill=Cytotype))+ylab("Average DMC")+geom_boxplot()+theme_classic()
+
+
+ggplot(nutri_heuch_nogas,aes(x=Treatment, y=nutri_heuch_nogas$avg_SLA,fill=Cytotype))+ylab("Average SLA")+geom_boxplot()+theme_classic()
+
+ggplot(nutri_heuch_roots,aes(x=Treatment,y=nutri_heuch_roots$avg_root_diamter_mm,fill=Cytotype))+ylab("Avg. Diameter (mm)")+geom_boxplot()+theme_bw()
+
+ggplot(nutri_heuch_roots,aes(x=Treatment,y=nutri_heuch_roots$avg_tips_per_mm,fill=Cytotype))+ylab("Avg. Tips per length (mm)")+geom_boxplot()+theme_bw()
+
+```
+
+
+```{r}
+library(emmeans)
+library(lsmeans)
+library(multcomp)
+library(multcompView)
+
+Total_bio_lm_model<-lm(log10(nutri_heuch_nogas$total_biomass_g)~Cytotype*Treatment,data = nutri_heuch_nogas,na.action = na.omit)
+
+anova(Total_bio_lm_model)
+nobs(Total_bio_lm_model)
+
+nutri_heuch_nogas$Cytotype<-as.factor(nutri_heuch_nogas$Cytotype)
+nutri_heuch_nogas$Treatment<-as.factor(nutri_heuch_nogas$Treatment)
+
+Total_bio_lm_model_lsm <- emmeans(Total_bio_lm_model, pairwise ~ Cytotype*Treatment, cov.reduce = FALSE,pbkrtest.limit = 3360) 
+
+str(Total_bio_lm_model_lsm)
+
+summary(Total_bio_lm_model_lsm, type = "response")
+```
+
+```{r}
+qqPlot((nutri_heuch_nogas$avg_DMC))
+
+abovebio_glm<-glm(nutri_heuch_nogas$normalized_aboveground_mass~Cytotype*Treatment,family = quasibinomial(link = logit),data = nutri_heuch_nogas,na.action = na.omit)
+
+Anova(abovebio_glm)
+nobs(abovebio_glm)
+
+Abovebio_lm_model_lsm <- emmeans(abovebio_glm, pairwise ~ Cytotype*Treatment, cov.reduce = FALSE,pbkrtest.limit = 3360) 
+
+str(Abovebio_lm_model_lsm)
+
+summary(Abovebio_lm_model_lsm, type = "response")
+
+rhizobio_glm<-glm(nutri_heuch_nogas$normalized_rhizome_mass~Cytotype*Treatment,family = quasibinomial(link = logit),data = nutri_heuch_nogas,na.action = na.omit)
+
+Anova(rhizobio_glm)
+
+rhizobio_glm_lsm <- emmeans(rhizobio_glm, pairwise ~ Cytotype*Treatment, cov.reduce = FALSE,pbkrtest.limit = 3360) 
+
+str(rhizobio_glm_lsm)
+
+summary(rhizobio_glm_lsm, type = "response")
+
+SLA_lmer<-lm(nutri_heuch_nogas$avg_SLA~Treatment*Cytotype,data = nutri_heuch_nogas,na.action = na.omit)
+
+anova(SLA_lmer)
+
+SLA_lmer_lsm <- emmeans(SLA_lmer, pairwise ~ Cytotype*Treatment, cov.reduce = FALSE,pbkrtest.limit = 3360) 
+
+str(SLA_lmer_lsm)
+
+summary(SLA_lmer_lsm, type = "response")
+
+LDMC_lm<-lm(nutri_heuch_nogas$avg_DMC~Cytotype*Treatment,data = nutri_heuch_nogas,na.action = na.omit)
+
+anova(LDMC_lm)
+
+LDMC_lm_lsm <- emmeans(LDMC_lm, pairwise ~ Cytotype*Treatment, cov.reduce = FALSE,pbkrtest.limit = 3360) 
+
+str(LDMC_lm_lsm )
+
+summary(LDMC_lm_lsm, type = "response")
+
+```
+
+```{r}
+fine_root_bio_lmer<-lmer(nutri_heuch_nogas$normalized_fine_roots_mass~Treatment*Cytotype+(1|Population),data = nutri_heuch_nogas,na.action = na.omit)
+
+anova(fine_root_bio_lmer)
+
+fineroot_lmer_asin<-lmer(nutri_heuch_nogas$asin_normal_fine_root_mass~Treatment*Cytotype+(1|Population),data = nutri_heuch_nogas,na.action = na.omit)
+
+anova(fineroot_lmer_asin)
+```
+
+```{r}
+rhizo_lmer<-lmer(nutri_heuch_nogas$normalized_rhizome_mass~Treatment*Cytotype+(1|Population),data = nutri_heuch_nogas,na.action = na.omit)
+
+anova(rhizo_lmer)
+
+rhizo_lmer_asin<-lmer(nutri_heuch_nogas$asin_normal_rhizo_mass~Treatment*Cytotype+(1|Population),data = nutri_heuch_nogas,na.action = na.omit)
+
+anova(rhizo_lmer_asin)
+```
+
+```{r}
+belowN_lmer<-lm(heuch_CN_nogas$below_percent_N~Treatment*Cytotype,data = heuch_CN_nogas,na.action = na.omit)
+
+anova(belowN_lmer)
+
+belowN_lmer_asin<-lm(heuch_CN_nogas$asin_below_percent_N~Treatment*Cytotype,data = heuch_CN_nogas,na.action = na.omit)
+
+anova(belowN_lmer_asin)
+```
+```{r}
+aboveN_lmer<-lmer(heuch_CN_nogas$above_percent_N~Treatment*Cytotype+(1|Population),data = heuch_CN_nogas,na.action = na.omit)
+
+anova(aboveN_lmer)
+
+aboveN_lmer_asin<-lmer(heuch_CN_nogas$asin_above_percent_N~Treatment*Cytotype+(1|Population),data = heuch_CN_nogas,na.action = na.omit)
+
+anova(aboveN_lmer_asin)
+```
+
+```{r}
+aboveP_lmer<-lmer(heuch_phos_nogas$above_percent_phorphorus~Treatment*Cytotype+(1|Population),data = heuch_phos_nogas,na.action = na.omit)
+
+anova(aboveP_lmer)
+
+aboveP_lmer_asin<-lmer(heuch_phos_nogas$asin_above_percent_P~Treatment*Cytotype+(1|Population),data = heuch_phos_nogas,na.action = na.omit)
+
+anova(aboveP_lmer_asin)
+```
+
+```{r}
+belowP_lmer<-lmer(heuch_phos_nogas$below_percent_phorphorus~Treatment*Cytotype+(1|Population),data = heuch_phos_nogas,na.action = na.omit)
+
+anova(belowP_lmer)
+
+belowP_lmer_asin<-lmer(heuch_phos_nogas$asin_below_percent_P~Treatment*Cytotype+(1|Population),data = heuch_phos_nogas,na.action = na.omit)
+
+anova(belowP_lmer_asin)
+```
+
+```{r}
+gas_control_Total_bio_lm_model<-lm(gassed_control_nutriHeuch$total_biomass_g~Treatment*finalized_ploidy,data = gassed_control_nutriHeuch,na.action = na.omit)
+
+gas_control_Total_bio_lmer_model<-lmer(gassed_control_nutriHeuch$total_biomass_g~Treatment*finalized_ploidy+(1|Population),data = gassed_control_nutriHeuch,na.action = na.omit)
+
+anova(gas_control_Total_bio_lmer_model)
+
+gas_control_totalbio_tukey<-emmeans(gas_control_Total_bio_lmer_model,list(~Treatment+finalized_ploidy))
+
+gas_control_totalbio_tukey2<-emmeans(gas_control_Total_bio_lm_model,list(~Treatment+finalized_ploidy))
+
+CLD(gas_control_totalbio_tukey,Letter="abcdefg")
+```
+
+```{r}
+data_summary2 <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      se = sd(x[[col]]/sqrt(length(x[[col]])), na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+gassed_control_nutriHeuch$Treatment2<-factor(gassed_control_nutriHeuch$Treatment,levels = c("L","C","H"))
+
+gassed_control_nutriHeuch_totalbio<-data_summary2(gassed_control_nutriHeuch,varname = "total_biomass_g",groupnames = c("Cytotype","Treatment2"))
+
+aggregate_gassed_total_bio<-ggplot(gassed_control_nutriHeuch_totalbio,aes(x=Treatment2,y=total_biomass_g))+geom_path(stat = "identity", aes(group=Cytotype,color=Cytotype),size=2.5)+ geom_errorbar(aes(color= Cytotype,ymin=total_biomass_g-se, ymax= total_biomass_g +se), width = 0.2,size=0.8) + geom_point(aes(color=Cytotype), size=4)+theme_bw()+theme(strip.background = element_blank())+ylab("Total Biomass (g)")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face = "bold",size = 20))+theme(axis.text = element_text(size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkred","darkgoldenrod3"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+theme(axis.text.x=element_text(angle=0,hjust=0.5))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+aggregate_gassed_total_bio
+```
+
+
+```{r}
+Chlor_pop_lmer_model<-lmer(nutri_heuch_nogas_wo4xest$avg_chlorophyll~Treatment*Cytotype*Population+(1|Tray),data = nutri_heuch_nogas_wo4xest,na.action = na.omit)
+
+anova(Chlor_pop_lmer_model)
+
+Chlor_pop_tukey<-emmeans(Chlor_pop_lmer_model,list(~Treatment+Cytotype+Population))
+
+cld(Chlor_pop_tukey,Letter="abcdefgh")
+```
+
+```{r}
+Root_phos_lm_model<-lm(heuch_phos_nogas$below_percent_phorphorus~Treatment*Cytotype,data = heuch_phos_nogas,na.action = na.omit)
+
+Root_phos_lmer_model<-lmer(heuch_phos_nogas$below_percent_phorphorus~Treatment*Cytotype+(1|Population),data = heuch_phos_nogas,na.action = na.omit)
+
+anova(Root_phos_lm_model)
+
+rand(Root_phos_lmer_model)
+
+anova(Root_phos_lmer_model)
+
+RootPhos_tukey<-emmeans(Root_phos_lmer_model,pairwise~Cytotype*Treatment)
+RootPhos_tukey
+cld(RootPhos_tukey,Letter="abcdefgh")
+```
+
+```{r}
+above_phos_lm_model<-lm(heuch_phos_nogas$above_percent_phorphorus~Treatment*Cytotype,data = heuch_phos_nogas,na.action = na.omit)
+
+above_phos_lmer_model<-lmer(heuch_phos_nogas$above_percent_phorphorus~Treatment*Cytotype+(1|Population),data = heuch_phos_nogas,na.action = na.omit)
+
+anova(above_phos_lm_model)
+
+rand(above_phos_lmer_model)
+
+anova(above_phos_lmer_model)
+
+abovePhos_tukey<-emmeans(above_phos_lmer_model,list(~Treatment+Cytotype))
+
+cld(abovePhos_tukey,Letter="abcdefgh")
+
+
+```
+
+
+```{r}
+Root_nitro_lm_model<-lm(heuch_CN_nogas$below_percent_N~Treatment*Cytotype,data = heuch_CN_nogas,na.action = na.omit)
+
+Root_nitro_lmer_model<-lmer(heuch_CN_nogas$below_percent_N~Treatment*Cytotype+(1|Population),data = heuch_CN_nogas,na.action = na.omit)
+
+anova(Root_nitro_lm_model)
+
+rand(Root_nitro_lmer_model)
+
+anova(Root_nitro_lmer_model)
+
+RootNitro_tukey<-emmeans(Root_nitro_lmer_model,pairwise~Cytotype*Treatment)
+RootNitro_tukey
+
+cld(RootNitro_tukey,Letter="abcdefgh")
+```
+```{r}
+above_nitro_lm_model<-lm(heuch_CN_nogas$above_percent_N~Treatment*Cytotype,data = heuch_CN_nogas,na.action = na.omit)
+
+above_nitro_lmer_model<-lmer(heuch_CN_nogas$above_percent_N~Treatment*Cytotype+(1|Population),data = heuch_CN_nogas,na.action = na.omit)
+
+anova(above_nitro_lm_model)
+
+rand(above_nitro_lmer_model)
+
+anova(above_nitro_lmer_model)
+
+aboveNitro_tukey<-emmeans(above_nitro_lmer_model,pairwise~Cytotype*Treatment)
+aboveNitro_tukey
+CLD(aboveNitro_tukey,Letter="abcdefgh")
+```
+
+```{r}
+leveneTest((above_percent_N)~Treatment*Cytotype,data = heuch_CN_nogas)
+
+ggplot(heuch_CN_nogas,aes(x=Treatment,y=heuch_CN_nogas$below_percent_N,fill=Cytotype))+geom_boxplot()+theme_classic()
+
+AboveCN<-lmer(heuch_CN_nogas$above_percent_N~Treatment*Cytotype+(1|Population),data = heuch_CN_nogas,na.action = na.omit)
+
+anova(AboveCN)
+
+BelowCN<-lmer(log(below_percent_N)~Treatment*Cytotype+(1|Population),data = heuch_CN_nogas,na.action = na.omit)
+
+anova(BelowCN)
+```
+
+```{r}
+leveneTest(above_percent_phorphorus~Treatment*Cytotype,data = heuch_phos_nogas)
+
+ggplot(heuch_phos_nogas,aes(x=Treatment,y=heuch_phos_nogas$above_percent_phorphorus,fill=Cytotype))+geom_boxplot()+theme_classic()
+
+Above_phos<-lmer(heuch_phos_nogas$above_percent_phorphorus~Treatment*Cytotype+(1|Population),data = heuch_phos_nogas,na.action = na.omit)
+
+anova(Above_phos)
+
+ggplot(heuch_phos_nogas,aes(x=Treatment,y=heuch_phos_nogas$below_percent_phorphorus,fill=Cytotype))+geom_boxplot()+theme_classic()
+
+Below_phos<-lmer(heuch_phos_nogas$below_percent_phorphorus~Treatment*Cytotype+(1|Population),data = heuch_phos_nogas,na.action = na.omit)
+
+
+anova(Below_phos)
+```
+
+
+```{r}
+#Inter-nutrient treatment EFSize GGplot of normalized aboveground mass
+ES_normal_above_mass<-ggplot(data = nutri_heuch_ES,aes(x=Treatment,y=normal_abovemass_cohenD,ymin=normal_abovemass_cohenD_lower95,ymax=normal_abovemass_cohenD_upper95,col=finalized_ploidy,fill=finalized_ploidy, shape=finalized_ploidy),labs(fill="Cytotype"))+geom_pointrange(size=1.4,position = position_dodge(width = 0.5))+geom_hline(yintercept = 0,lty=2)+coord_flip()+ylab("Cohen's D (95% CI)")+theme_classic()+theme(axis.line.y = element_blank())+theme(legend.position =c(x=0.9,y=0.9))+scale_shape_manual(values = c(1,16,18,1,16,18))+theme(axis.text = element_text(size = 16,colour = 'black'))+theme(axis.title = element_text(size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+ggtitle("Normalized Abovground Mass")+theme(title = element_text(size = 20,colour = 'black'))+scale_y_continuous(limits = c(-5.5,5.5))+theme(legend.position = 'none')
+
+ES_normal_above_mass
+```
+
+
+```{r}
+NP_nutriheuch_effsizes<-read.csv("04232020_nutriheuch_N_P_effsizes_intertreatment_long.csv")
+
+NP_nutriheuch_effsizes$Treatment2<-factor(NP_nutriheuch_effsizes$Treatment,levels = c("Low","Control","High"))
+
+NP_nutriheuch_effsizes$Trait2<-as.factor(NP_nutriheuch_effsizes$Trait)
+
+NP_nutriheuch_effsizes$Trait2<-factor(NP_nutriheuch_effsizes$Trait2,levels = c("Aboveground N (%)","Aboveground P (%)","Belowground N (%)","Belowground P (%)"))
+
+Intertreatment_ES_NP_nutriheuch<-ggplot(data =NP_nutriheuch_effsizes,aes(x=Trait2,y=Cohen_d,ymin=lower95,ymax=upper95,col=finalized_ploidy,fill=finalized_ploidy, shape=finalized_ploidy),labs(fill="Cytotype"))+geom_pointrange(size=2,fatten=2.5,position = position_dodge(width = 0.3))+geom_errorbar(aes(ymin=lower95,ymax=upper95),width = 0.2,size=0.8,position=position_dodge((width=0.3)))+geom_hline(yintercept = 0,lty=2)+coord_flip()+ylab("Cohen's D (95% CI)")+theme_classic()+theme(axis.line.y = element_blank())+theme(legend.position =c(x=-0.2,y=0.95))+scale_shape_manual(values = c(16,16,16,16,16,16))+scale_color_manual(values = c("limegreen","royalblue2"))+theme(axis.text = element_text(face = 'bold', size = 16,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+theme(strip.text.x = element_text(size = 20))+scale_y_continuous(limits = c(-3,3))+theme(axis.title.y = element_blank())+facet_wrap(vars(Treatment2))+scale_x_discrete(limits=rev(levels(NP_nutriheuch_effsizes$Trait2)))+theme(panel.border = element_blank(),panel.background = element_blank(),panel.grid = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())
+
+Intertreatment_ES_NP_nutriheuch
+```
+
+```{r}
+leaf_functional_effsizes<-read.csv("04232020_nutriheuch_leaf_effsizes_long.csv")
+
+leaf_functional_effsizes$Treatment2<-factor(leaf_functional_effsizes$Treatment,levels = c("Low","Control","High"))
+
+leaf_functional_effsizes$Treatment2<-as.factor(leaf_functional_effsizes$Treatment2)
+
+leaf_functional_effsizes$CohenD<-as.numeric(leaf_functional_effsizes$CohenD)
+leaf_functional_effsizes$upper95<as.numeric(leaf_functional_effsizes$upper95)
+leaf_functional_effsizes$lower95<-as.numeric(leaf_functional_effsizes$lower95)
+
+leaf_functional_effsizes$Trait2<-as.factor(leaf_functional_effsizes$Trait)
+
+leaf_functional_effsizes$Trait2<-factor(leaf_functional_effsizes$Trait2,levels = c("Chlorophyll","DMC","SLA"))
+
+Intertreatment_ES_leaf_nutriheuch<-ggplot(data =leaf_functional_effsizes,aes(x=Trait2,y=CohenD,ymin=lower95,ymax=upper95,col=finalized_ploidy,fill=finalized_ploidy, shape=finalized_ploidy),labs(fill="Cytotype"))+geom_pointrange(size=2,fatten=2.5,position = position_dodge(width = 0.3))+geom_errorbar(aes(ymin=lower95,ymax=upper95),width = 0.2,size=0.8,position=position_dodge((width=0.3)))+geom_hline(yintercept = 0,lty=5)+coord_flip()+ylab("Cohen's D (95% CI)")+theme_classic()+theme(axis.line.y = element_blank())+theme(legend.position =c(x=-0.2,y=0.95))+scale_shape_manual(values = c(16,16,16,16,16,16))+scale_color_manual(values = c("limegreen","royalblue2"))+theme(axis.text = element_text(face = 'bold', size = 16,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+theme(strip.text.x = element_text(size = 20))+scale_y_continuous(limits = c(-3,3))+theme(axis.title.y = element_blank())+facet_wrap(vars(Treatment2))+scale_x_discrete(limits=rev(levels(leaf_functional_effsizes$Trait2)))+theme(panel.border = element_blank(),panel.background = element_blank(),panel.grid = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())
+
+Intertreatment_ES_leaf_nutriheuch
+
+str(leaf_functional_effsizes)
+```
+```{r}
+pop_effsizes<-read.csv("08112020_nutriheuch_pop_effsizes.csv")
+
+pop_effsizes$Treatment2<-factor(pop_effsizes$Treatment,levels = c("Low","Control","High"))
+
+pop_effsizes$Treatment2<-as.factor(pop_effsizes$Treatment2)
+
+pop_effsizes$CohenD<-as.numeric(pop_effsizes$Cohen_d)
+pop_effsizes$upper95<as.numeric(pop_effsizes$upper95)
+pop_effsizes$lower95<-as.numeric(pop_effsizes$lower95)
+
+pop_effsizes$Trait2<-as.factor(pop_effsizes$Trait)
+
+pop_effsizes$Trait2<-factor(pop_effsizes$Trait2,levels = c("Total Biomass (g.)","Aboveground Mass (%)","Rhizome Mass (%)","Fine Root Mass (%)","Chlorophyll","LDMC","SLA"))
+
+pop_ES_nutriheuch<-ggplot(data =pop_effsizes,aes(x=Trait2,y=CohenD,ymin=lower95,ymax=upper95,col=Population,fill=Population, shape=Population),labs(fill="Population"))+geom_pointrange(size=2,fatten=2.5,position = position_dodge(width = 0.3))+geom_errorbar(aes(ymin=lower95,ymax=upper95),width = 0.2,size=0.8,position=position_dodge((width=0.3)))+geom_hline(yintercept = 0,lty=5)+coord_flip()+ylab("Cohen's D (95% CI)")+theme_bw()+scale_shape_manual(values = c(16,16,16,16,16,16))+scale_color_manual(values = c("green4","green3","olivedrab3","springgreen1"))+theme(axis.text = element_text(face = 'bold', size = 16,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+theme(strip.text.x = element_text(size = 20))+scale_y_continuous(limits = c(-8,6))+theme(axis.title.y = element_blank())+facet_wrap(vars(Treatment2), nrow = 2,ncol = 2)+ scale_x_discrete(limits=rev(levels(pop_effsizes$Trait2))) +theme(panel.spacing.x = unit(0.1,"line"))+theme(strip.background = element_blank())+theme(legend.position = 'none')
+
+pop_ES_nutriheuch
+```
+```{r}
+pop_ES_nutriheuch2<-ggplot(data =pop_effsizes,aes(x=Trait2,y=CohenD,ymin=lower95,ymax=upper95,col=Population,fill=Population, shape=Population),labs(fill="Population"))+geom_pointrange(size=1.5,fatten=2,position = position_dodge(width = 0.4))+geom_errorbar(aes(ymin=lower95,ymax=upper95),width = 0.2,size=0.5,position=position_dodge((width=0.4)))+geom_hline(yintercept = 0,lty=5)+coord_flip()+ylab("Cohen's D (95% CI)")+theme_bw()+scale_shape_manual(values = c(16,16,16,16,16,16))+scale_color_manual(values = c("green4","green3","olivedrab3","springgreen1"))+theme(axis.text = element_text(face = 'bold', size = 16,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+theme(strip.text.x = element_text(size = 20))+scale_y_continuous(limits = c(-8,6))+theme(axis.title.y = element_blank())+facet_wrap(vars(Treatment2), nrow = 1,ncol = 3)+ scale_x_discrete(limits=rev(levels(pop_effsizes$Trait2))) +theme(panel.spacing.x = unit(0.1,"line"))+theme(strip.background = element_blank())+theme(legend.position = c(-0.2,0.02))+theme(legend.title = element_text(size = 15))
+
+pop_ES_nutriheuch2
+```
+
+
+```{r}
+nutri_heuch_nogas_wo4xest<-read.csv("05112020_NUTRI_heuch_wo2xG_wo4xest.csv")
+
+nutri_heuch_nogas_wo4xest$Treatment2<-factor(nutri_heuch_nogas_wo4xest$Treatment,levels = c("L","C","H"))
+
+nutri_heuch_nogas_wo4xest$Population2<-factor(nutri_heuch_nogas_wo4xest$Population,levels = c("Cheney","Palouse","Blue","Santa"))
+
+TotalBio_reaction_norm_wo4xest<-ggplot(nutri_heuch_nogas_wo4xest,aes(x=Treatment2,y=total_biomass_g,))+stat_summary(aes(group = Cytotype,color=Cytotype), fun = mean, geom = "path",size=2) + stat_summary(aes(color = Cytotype), fun.data = mean_cl_boot, geom = "errorbar", width = 0.2,size=0.8) + stat_summary(aes(color = Cytotype), fun = mean, geom = "point", size = 4) +facet_wrap(vars(Population2),nrow = 1)+theme_bw()+theme(strip.background = element_blank())+ylab("Total Biomass (g)")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face = 'bold',size = 20))+theme(axis.text = element_text(size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+scale_y_continuous(breaks = scales::pretty_breaks(n = 6))+theme(legend.title = element_text(face = "bold",size = 16))
+
+TotalBio_reaction_norm_wo4xest
+```
+
+
+```{r}
+Chlor_reaction_norm_wo4xest<-ggplot(nutri_heuch_nogas_wo4xest,aes(x=Treatment2,y=avg_chlorophyll,))+stat_summary(aes(group = Cytotype,color=Cytotype), fun = mean, geom = "path",size=2) + stat_summary(aes(color = Cytotype), fun.data = mean_se, geom = "errorbar", width = 0.2,size=0.8) + stat_summary(aes(color = Cytotype), fun = mean, geom = "point", size = 4) +facet_wrap(vars(Population2),nrow = 1)+theme_bw()+theme(strip.background = element_blank())+ylab("Leaf Chlorophyll")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face = 'bold',size = 20))+theme(axis.text = element_text(size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+Chlor_reaction_norm_wo4xest
+```
+
+
+```{r}
+
+DMC_reaction_norm_wo4xest<-ggplot(nutri_heuch_nogas_wo4xest,aes(x=Treatment2,y=avg_DMC,))+stat_summary(aes(group = Cytotype,color=Cytotype), fun = mean, geom = "path",size=2) + stat_summary(aes(color = Cytotype), fun.data = mean_se, geom = "errorbar", width = 0.2,size=0.8) + stat_summary(aes(color = Cytotype), fun = mean, geom = "point", size = 4) +facet_wrap(vars(Population2),nrow = 1)+theme_bw()+theme(strip.background = element_blank())+ylab("DMC")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face = 'bold',size = 20))+theme(axis.text = element_text(size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+scale_y_continuous(breaks = scales::pretty_breaks(n = 4))+theme(legend.title = element_text(face = "bold",size = 16))
+
+DMC_reaction_norm_wo4xest
+```
+
+```{r}
+data_summary2 <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      se = sd(x[[col]]/sqrt(length(x[[col]])), na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+nutri_heuch_nogas_wo4xest$Treatment2<-factor(nutri_heuch_nogas_wo4xest$Treatment,levels = c("L","C","H"))
+
+nutri_heuch_nogas_wo4xest$Population2<-factor(nutri_heuch_nogas_wo4xest$Population,levels = c("Cheney","Palouse","Blue","Santa"))
+
+nutri_heuch_nogas_wo4xest_rhizo<-data_summary2(nutri_heuch_nogas_wo4xest,varname = "normalized_rhizome_mass",groupnames = c("Cytotype","Treatment2","Population2"))
+
+Rhizome_reaction_norm_wo4xest<-ggplot(nutri_heuch_nogas_wo4xest,aes(x=Treatment2,y=normalized_rhizome_mass))+stat_summary(aes(group = Cytotype,color=Cytotype), fun = mean, geom = "path",size=2) + stat_summary(aes(color = Cytotype), fun.data = mean_se, geom = "errorbar", width = 0.2,size=0.8) + stat_summary(aes(color = Cytotype), fun = mean, geom = "point", size = 4)+facet_wrap(vars(Population2),nrow = 1)+theme_bw()+theme(strip.background = element_blank())+ylab("Rhizome Mass (%)")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face = 'bold',size = 20))+theme(axis.text = element_text(size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+Rhizome_reaction_norm_wo4xest
+```
+
+```{r}
+Above_bio_reaction_norm_wo4xest<-ggplot(nutri_heuch_nogas_wo4xest,aes(x=Treatment2,y=normalized_aboveground_mass))+stat_summary(aes(group = Cytotype,color=Cytotype), fun = mean, geom = "path",size=2) + stat_summary(aes(color = Cytotype), fun.data = mean_cl_boot, geom = "errorbar", width = 0.2,size=0.8) + stat_summary(aes(color = Cytotype), fun = mean, geom = "point", size = 4) +facet_wrap(vars(Population2),nrow = 1)+theme_bw()+theme(strip.background = element_blank())+ylab("Aboveground Mass (%)")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face = 'bold',size = 20))+theme(axis.text = element_text(size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+Above_bio_reaction_norm_wo4xest
+```
+
+
+```{r}
+heuch_CN_nogas$Population2<-factor(heuch_CN_nogas$Population,levels = c("Cheney","Palouse","Blue","Santa","CDL","Benewah"))
+
+heuch_CN_nogas$Treatment2<-factor(heuch_CN_nogas$Treatment,levels = c("L","C","H"))
+
+Below_nitrogen_norm<-ggplot(heuch_CN_nogas,aes(x=Treatment2,y=below_percent_N))+stat_summary(aes(group = Cytotype,color=Cytotype), fun = mean, geom = "path",size=2) + stat_summary(aes(color = Cytotype), fun.data = mean_cl_boot, geom = "errorbar", width = 0.2,size=0.8) + stat_summary(aes(color = Cytotype), fun = mean, geom = "point", size = 4) +facet_wrap(vars(Population2),nrow = 1)+theme_bw()+theme(strip.background = element_blank())+ylab("Belowground Nitrgoen (%)")+theme(axis.title.x = element_blank())+theme(strip.text.x = element_text(size = 20))+theme(axis.text = element_text(face = 'bold', size = 16,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+Below_nitrogen_norm
+```
+
+```{r}
+heuch_phos_nogas$Treatment2<-factor(heuch_phos_nogas$Treatment,levels = c("L","C","H"))
+
+heuch_phos_nogas$Population2<-factor(heuch_phos_nogas$Population,levels = c("Cheney","Palouse","Blue","Santa","CDL","Benewah"))
+
+heuch_phos_reactionNorm<-ggplot(heuch_phos_nogas,aes(x=Treatment2,y=above_percent_phorphorus,))+stat_summary(aes(group = Cytotype,color=Cytotype), fun = mean, geom = "path",size=2) + stat_summary(aes(color = Cytotype), fun.data = mean_cl_boot, geom = "errorbar", width = 0.2,size=0.8) + stat_summary(aes(color = Cytotype), fun = mean, geom = "point", size = 4) +facet_wrap(vars(Population2),nrow = 1)+theme_bw()+theme(strip.background = element_blank())+ylab("Above %P")+theme(axis.title.x = element_blank())+theme(strip.text.x = element_text(size = 20))+theme(axis.text = element_text(face = 'bold', size = 16,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+heuch_phos_reactionNorm
+```
+
+```{r}
+nutriheuch_phos<-read.csv("05042020_nutriheuch_final_phosphorus_wo2xG_v2.csv")
+
+nutriheuch_phos$Treatment2<-factor(nutriheuch_phos$Treatment,levels = c("L","C","H"))
+
+nutriheuch_phos$Population2<-factor(nutriheuch_phos$Population,levels = c("Cheney","Palouse","Blue","Santa","CDL","Benewah"))
+
+BelowP_lmer_model<-lmer(nutriheuch_phos$below_percent_phorphorus~Treatment*Cytotype+(1|Population2),data = nutriheuch_phos,na.action = na.omit)
+
+anova(BelowP_lmer_model)
+
+BelowP_tukey<-emmeans(BelowP_lmer_model,list(~Treatment+Cytotype))
+
+CLD(BelowP_tukey,Letter="abcdefgh")
+
+
+below_heuch_phos_reactionnorm<-ggplot(nutriheuch_phos,aes(x=Treatment2,y=nutriheuch_phos$below_percent_phorphorus,))+stat_summary(aes(group = Cytotype,color=Cytotype), fun = mean, geom = "path",size=2) + stat_summary(aes(color = Cytotype), fun.data = mean_cl_boot, geom = "errorbar", width = 0.2,size=0.8) + stat_summary(aes(color = Cytotype), fun = mean, geom = "point", size = 4) +facet_wrap(vars(Population2),nrow = 1)+theme_bw()+theme(strip.background = element_blank())+ylab("Below %P")+theme(axis.title.x = element_blank())+theme(strip.text.x = element_text(size = 20))+theme(axis.text = element_text(face = 'bold', size = 16,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+below_heuch_phos_reactionnorm
+```
+
+```{r}
+aggregate_below_heuch_phos_reactionnorm<-ggplot(heuch_phos_nogas,aes(x=Treatment2,y=below_percent_phorphorus,))+stat_summary(aes(group = Cytotype,color=Cytotype), fun = mean, geom = "path",size=2) + stat_summary(aes(color = Cytotype), fun.data = mean_cl_boot, geom = "errorbar", width = 0.2,size=0.8) + stat_summary(aes(color = Cytotype), fun = mean, geom = "point", size = 4)+theme_bw()+theme(strip.background = element_blank())+ylab("Below %P")+theme(axis.title.x = element_blank())+theme(strip.text.x = element_text(size = 20))+theme(axis.text = element_text(face = 'bold', size = 16,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+theme(axis.text.x=element_text(angle=0,hjust=0.5))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))
+
+aggregate_below_heuch_phos_reactionnorm
+```
+
+```{r}
+Rootdiameter<-lmer(nutri_heuch_roots$avg_root_diamter_mm~Cytotype*Treatment+(1|Population),data = nutri_heuch_roots,na.action = na.omit)
+
+anova(Rootdiameter)
+nobs(Rootdiameter)
+
+Rootdiameter_lsm <- emmeans(Rootdiameter, pairwise ~ Cytotype*Treatment, cov.reduce = FALSE,pbkrtest.limit = 3360) 
+
+str(Rootdiameter_lsm)
+
+summary(Rootdiameter_lsm, type = "response")
+
+
+Root_tips<-lm(nutri_heuch_roots$avg_tips_per_mm~Treatment*Cytotype,data = nutri_heuch_roots,na.action = na.omit)
+
+anova(Root_tips)
+
+ggplot(nutri_heuch_roots,aes(x=Treatment,y=nutri_heuch_roots$avg_root_diamter_mm,fill=Cytotype))+ylab("Avg. Diameter (mm)")+geom_boxplot()+theme_bw()
+
+ggplot(nutri_heuch_roots,aes(x=Treatment,y=nutri_heuch_roots$avg_tips_per_mm,fill=Cytotype))+ylab("Avg. Tips per length (mm)")+geom_boxplot()+theme_bw()
+
+```
+
+```{r}
+data_summary2 <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      se = sd(x[[col]]/sqrt(length(x[[col]])), na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+nutri_heuch_roots$Treatment2<-factor(nutri_heuch_roots$Treatment,levels = c("L","C","H"))
+
+nutri_heuch_roots_diameter<-data_summary2(nutri_heuch_roots,varname = "avg_root_diamter_mm",groupnames = c("Cytotype","Treatment2"))
+
+aggregate_root_diameter<-ggplot(nutri_heuch_roots_diameter,aes(x=Treatment2,y=avg_root_diamter_mm))+geom_path(stat = "identity", aes(group=Cytotype,color=Cytotype),size=2.5)+ geom_errorbar(aes(color= Cytotype,ymin=avg_root_diamter_mm-se, ymax= avg_root_diamter_mm +se), width = 0.2,size=0.8) + geom_point(aes(color=Cytotype), size=4)+theme_bw()+theme(strip.background = element_blank())+ylab("Avg. Root Diameter (mm)")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face = "bold",size = 20))+theme(axis.text = element_text(size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+theme(axis.text.x=element_text(angle=0,hjust=0.5))+scale_y_continuous(breaks = scales::pretty_breaks(n = 4))+theme(legend.title = element_text(face = "bold",size = 16))
+
+aggregate_root_diameter
+```
+
+```{r}
+data_summary2 <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      se = sd(x[[col]]/sqrt(length(x[[col]])), na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+nutri_heuch_nogas$Treatment2<-factor(nutri_heuch_nogas$Treatment,levels = c("L","C","H"))
+
+nutri_heuch_nogas_totalbio<-data_summary2(nutri_heuch_nogas,varname = "total_biomass_g",groupnames = c("Cytotype","Treatment2"))
+
+aggregate_total_biomass<-ggplot(nutri_heuch_nogas_totalbio,aes(x=Treatment2,y=log10(total_biomass_g)))+geom_path(stat = "identity", aes(group=Cytotype,color=Cytotype),size=2.5)+ geom_errorbar(aes(color= Cytotype,ymin=log10(total_biomass_g-se), ymax= log10(total_biomass_g+se)),width = 0.2,size=0.8) + geom_point(aes(color=Cytotype),size=4)+theme_bw()+theme(strip.background = element_blank())+ylab("Total Biomass (g)")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text(size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+theme(axis.text.x=element_text(angle=0,hjust=0.5))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+aggregate_total_biomass
+```
+
+
+```{r}
+data_summary2 <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      se = sd(x[[col]]/sqrt(length(x[[col]])), na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+nutri_heuch_nogas$Treatment2<-factor(nutri_heuch_nogas$Treatment,levels = c("L","C","H"))
+
+nutri_heuch_nogas_SLA<-data_summary2(nutri_heuch_nogas,varname = "avg_SLA",groupnames = c("Cytotype","Treatment2"))
+
+aggregate_SLA<-ggplot(nutri_heuch_nogas_SLA,aes(x=Treatment2,y=avg_SLA))+geom_path(stat = "identity", aes(group=Cytotype,color=Cytotype),size=2.5)+ geom_errorbar(aes(color= Cytotype,ymin=avg_SLA-se, ymax= avg_SLA+se),width = 0.2,size=0.8) + geom_point(aes(color=Cytotype),size=4)+theme_bw()+theme(strip.background = element_blank())+ylab("Avg SLA")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text(size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+theme(axis.text.x=element_text(angle=0,hjust=0.5))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+aggregate_SLA+theme(legend.position = "none")
+```
+
+```{r}
+data_summary2 <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      se = sd(x[[col]]/sqrt(length(x[[col]])), na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+nutri_heuch_nogas$Treatment2<-factor(nutri_heuch_nogas$Treatment,levels = c("L","C","H"))
+
+nutri_heuch_nogas_chlor<-data_summary2(nutri_heuch_nogas,varname = "avg_chlorophyll",groupnames = c("Cytotype","Treatment2"))
+
+aggregate_chlor<-ggplot(nutri_heuch_nogas_chlor,aes(x=Treatment2,y=avg_chlorophyll))+geom_path(stat = "identity", aes(group=Cytotype,color=Cytotype),size=2.5)+ geom_errorbar(aes(color= Cytotype,ymin=avg_chlorophyll-se, ymax= avg_chlorophyll+se),width = 0.2,size=0.8) + geom_point(aes(color=Cytotype),size=4)+theme_bw()+theme(strip.background = element_blank())+ylab("Avg Chlorophyll")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text(size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+theme(axis.text.x=element_text(angle=0,hjust=0.5))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+aggregate_chlor
+```
+
+```{r}
+chlor_model<-lmer(nutri_heuch_nogas$avg_chlorophyll~Treatment*Cytotype+(1|Population),data = nutri_heuch_nogas,na.action = na.omit)
+
+anova(chlor_model)
+
+chlor_tukey<-emmeans(chlor_model,list(~Treatment+Cytotype))
+
+cld(chlor_tukey,Letter="abcdefg")
+```
+
+
+```{r}
+data_summary2 <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      se = sd(x[[col]]/sqrt(length(x[[col]])), na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+nutri_heuch_nogas$Treatment2<-factor(nutri_heuch_nogas$Treatment,levels = c("L","C","H"))
+
+nutri_heuch_nogas_chlor<-data_summary2(nutri_heuch_nogas,varname = "avg_chlorophyll",groupnames = c("Cytotype","Treatment2"))
+
+aggregate_chlor<-ggplot(nutri_heuch_nogas_chlor,aes(x=Treatment2,y=avg_chlorophyll))+geom_path(stat = "identity", aes(group=Cytotype,color=Cytotype),size=2.5)+ geom_errorbar(aes(color= Cytotype,ymin=avg_chlorophyll-se, ymax= avg_chlorophyll+se),width = 0.2,size=0.8) + geom_point(aes(color=Cytotype),size=4)+theme_bw()+theme(strip.background = element_blank())+ylab("Leaf Chlorophyll")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text(size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+theme(axis.text.x=element_text(angle=0,hjust=0.5))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+aggregate_chlor
+```
+
+
+```{r}
+data_summary2 <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      se = sd(x[[col]]/sqrt(length(x[[col]])), na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+nutri_heuch_nogas$Treatment2<-factor(nutri_heuch_nogas$Treatment,levels = c("L","C","H"))
+
+nutri_heuch_nogas_DMC<-data_summary2(nutri_heuch_nogas,varname = "avg_DMC",groupnames = c("Cytotype","Treatment2"))
+
+aggregate_DMC<-ggplot(nutri_heuch_nogas_DMC,aes(x=Treatment2,y=avg_DMC))+geom_path(stat = "identity", aes(group=Cytotype,color=Cytotype),size=2.5)+ geom_errorbar(aes(color= Cytotype,ymin=avg_DMC-se, ymax= avg_DMC+se),width = 0.2,size=0.8) + geom_point(aes(color=Cytotype),size=4)+theme_bw()+theme(strip.background = element_blank())+ylab("Avg DMC")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text(size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+theme(axis.text.x=element_text(angle=0,hjust=0.5))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+aggregate_DMC
+```
+
+
+```{r}
+data_summary2 <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      se = sd(x[[col]]/sqrt(length(x[[col]])), na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+nutri_heuch_nogas$Treatment2<-factor(nutri_heuch_nogas$Treatment,levels = c("L","C","H"))
+
+nutri_heuch_nogas_above<-data_summary2(nutri_heuch_nogas,varname = "normalized_aboveground_mass",groupnames = c("Cytotype","Treatment2"))
+
+
+aggregate_norm_above_bio2<-ggplot(nutri_heuch_nogas_above,aes(x=Treatment2,y=normalized_aboveground_mass))+geom_path(stat = "identity", aes(group=Cytotype,color=Cytotype),size=2.5) +geom_errorbar(aes(color=Cytotype,ymin=normalized_aboveground_mass-se, ymax= normalized_aboveground_mass+se),width = 0.2,size=0.8) + geom_point(aes(color=Cytotype),size=4)+theme_bw()+theme(strip.background = element_blank())+ylab("Above Biomass (%)")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text(size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+theme(axis.text.x=element_text(angle=0,hjust=0.5))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+aggregate_norm_above_bio2+theme(legend.position = 'none')
+```
+
+```{r}
+data_summary2 <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      se = sd(x[[col]]/sqrt(length(x[[col]])), na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+nutri_heuch_nogas$Treatment2<-factor(nutri_heuch_nogas$Treatment,levels = c("L","C","H"))
+
+nutri_heuch_nogas_rhizo<-data_summary2(nutri_heuch_nogas,varname = "normalized_rhizome_mass",groupnames = c("Cytotype","Treatment2"))
+
+aggregate_norm_rhizome2<-ggplot(nutri_heuch_nogas_rhizo,aes(x=Treatment2,y=normalized_rhizome_mass))+geom_path(stat = "identity",aes(group=Cytotype,color=Cytotype),size=2.5)+geom_errorbar(aes(color=Cytotype,ymin=normalized_rhizome_mass-se, ymax= normalized_rhizome_mass+se),width = 0.2,size=0.8) + geom_point(aes(color=Cytotype))+theme_bw()+theme(strip.background = element_blank())+ylab("Rhizome Biomass (%)")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text(size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+theme(axis.text.x=element_text(angle=0,hjust=0.5))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+aggregate_norm_rhizome2+theme(legend.position = 'none')
+```
+
+
+
+```{r}
+data_summary2 <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      se = sd(x[[col]]/sqrt(length(x[[col]])), na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+
+nutri_heuch_nogas$Treatment2<-factor(nutri_heuch_nogas$Treatment,levels = c("L","C","H"))
+
+nutri_heuch_nogas_fineroot<-data_summary2(nutri_heuch_nogas,varname = "normalized_fine_roots_mass",groupnames = c("Cytotype","Treatment2"))
+
+aggregate_norm_fineroot<-ggplot(nutri_heuch_nogas_fineroot,aes(x=Treatment2,y=normalized_fine_roots_mass))+geom_path(stat = "identity",aes(group=Cytotype,color=Cytotype),size=2.5)+geom_errorbar(aes(color=Cytotype,ymin=normalized_fine_roots_mass-se, ymax= normalized_fine_roots_mass+se),width = 0.2,size=0.8)+theme_bw()+theme(strip.background = element_blank())+ylab("Fine Root Biomass (%)")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text(size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+theme(axis.text.x=element_text(angle=0,hjust=0.5))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+aggregate_norm_fineroot+theme(legend.position = "none")
+```
+
+```{r}
+setwd("~/Desktop/Heuchera R data")
+
+data_summary2 <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      se = sd(x[[col]]/sqrt(length(x[[col]])), na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+nutriheuch_phos<-read.csv("05042020_nutriheuch_final_phosphorus_wo2xG_v2.csv")
+
+nutriheuch_phos$Treatment2<-factor(nutriheuch_phos$Treatment,levels = c("L","C","H"))
+
+nutriheuch_phos$Population2<-factor(nutriheuch_phos$Population,levels = c("Cheney","Palouse","Blue","Santa","CDL","Benewah"))
+
+nutriheuch_phos_rootP<-data_summary2(nutriheuch_phos,varname = "below_percent_phorphorus",groupnames = c("Cytotype","Treatment2"))
+
+aggregate_below_heuch_phos<-ggplot(nutriheuch_phos_rootP,aes(x=Treatment2,y=below_percent_phorphorus,))+geom_path(stat = "identity", aes(group=Cytotype,color=Cytotype),size=2.5) +geom_errorbar(aes(color=Cytotype,ymin=below_percent_phorphorus-se, ymax= below_percent_phorphorus+se),width = 0.2,size=0.8) + geom_point(aes(color=Cytotype),size=4)+theme_bw()+theme(strip.background = element_blank())+ylab("Root Phosphorus (%)")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+aggregate_below_heuch_phos+theme(legend.position = "none")
+```
+
+```{r}
+setwd("~/Desktop/Heuchera R data")
+
+data_summary2 <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      se = sd(x[[col]]/sqrt(length(x[[col]])), na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+nutriheuch_phos<-read.csv("05042020_nutriheuch_final_phosphorus_wo2xG_v2.csv")
+
+nutriheuch_phos$Treatment2<-factor(nutriheuch_phos$Treatment,levels = c("L","C","H"))
+
+nutriheuch_phos$Population2<-factor(nutriheuch_phos$Population,levels = c("Cheney","Palouse","Blue","Santa","CDL","Benewah"))
+
+nutriheuch_phos_aboveP<-data_summary2(nutriheuch_phos,varname = "above_percent_phorphorus",groupnames = c("Cytotype","Treatment2"))
+
+aggregate_above_heuch_phos<-ggplot(nutriheuch_phos_aboveP,aes(x=Treatment2,y=above_percent_phorphorus,))+geom_path(stat = "identity", aes(group=Cytotype,color=Cytotype),size=2.5) +geom_errorbar(aes(color=Cytotype,ymin=above_percent_phorphorus-se, ymax= above_percent_phorphorus+se),width = 0.2,size=0.8) + geom_point(aes(color=Cytotype),size=4)+theme_bw()+theme(strip.background = element_blank())+ylab("Aboveground Phosphorus (%)")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+aggregate_above_heuch_phos+theme(legend.position = "none")
+```
+
+
+```{r}
+data_summary2 <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      se = sd(x[[col]]/sqrt(length(x[[col]])), na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+heuch_CN_nogas$Population2<-factor(heuch_CN_nogas$Population,levels = c("Cheney","Palouse","Blue","Santa","CDL","Benewah"))
+
+heuch_CN_nogas$Treatment2<-factor(heuch_CN_nogas$Treatment,levels = c("L","C","H"))
+
+heuch_CN_nogas_rootN<-data_summary2(heuch_CN_nogas,varname = "below_percent_N",groupnames = c("Cytotype","Treatment2"))
+
+aggregate_Below_nitrogen<-ggplot(heuch_CN_nogas_rootN,aes(x=Treatment2,y=below_percent_N))+geom_path(stat = "identity", aes(group=Cytotype,color=Cytotype),size=2.5) +geom_errorbar(aes(color=Cytotype,ymin=below_percent_N-se, ymax= below_percent_N+se),width = 0.2,size=0.8) + geom_point(aes(color=Cytotype),size=4)+ theme_bw()+theme(strip.background = element_blank())+ylab("Root Nitrgoen (%)")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face = 'bold',size = 20))+theme(axis.text = element_text(size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+scale_y_continuous(limits = c(0.9,2.4),breaks = seq(0,2.4, by = 0.45))+theme(legend.title = element_text(face = "bold",size = 16))
+
+aggregate_Below_nitrogen+theme(legend.position = "none")
+```
+
+```{r}
+data_summary2 <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      se = sd(x[[col]]/sqrt(length(x[[col]])), na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+heuch_CN_nogas$Population2<-factor(heuch_CN_nogas$Population,levels = c("Cheney","Palouse","Blue","Santa","CDL","Benewah"))
+
+heuch_CN_nogas$Treatment2<-factor(heuch_CN_nogas$Treatment,levels = c("L","C","H"))
+
+heuch_CN_nogas_aboveN<-data_summary2(heuch_CN_nogas,varname = "above_percent_N",groupnames = c("Cytotype","Treatment2"))
+
+aggregate_above_nitrogen<-ggplot(heuch_CN_nogas_aboveN,aes(x=Treatment2,y=above_percent_N))+geom_path(stat = "identity", aes(group=Cytotype,color=Cytotype),size=2.5) +geom_errorbar(aes(color=Cytotype,ymin=above_percent_N-se, ymax= above_percent_N+se),width = 0.2,size=0.8) + geom_point(aes(color=Cytotype),size=4)+ theme_bw()+theme(strip.background = element_blank())+ylab("Aboveground Nitrgoen (%)")+xlab("Nutrient Treatment")+theme(strip.text.x = element_text(face = 'bold',size = 20))+theme(axis.text = element_text(size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+theme(panel.background = element_blank(),panel.spacing.x = unit(0,"line"))+theme(strip.background = element_blank())+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))
+
+aggregate_above_nitrogen
+```
+
+
+```{r}
+setwd("~/Desktop/Heuchera R data")
+
+nutriheuch_norm_tissues2<-read.csv("05082020_summarized_normalbiomass.csv")
+
+nutriheuch_norm_tissues2$Treatment2<-factor(nutriheuch_norm_tissues2$Treatment,levels = c("L","C","H"))
+
+nutriheuch_norm_tissues2$Cytotype2<-factor(nutriheuch_norm_tissues2$Cytotype,levels = c("2x","Neo-4x","4x"))
+
+nutriheuch_norm_tissues2$avg_percent2<-lapply(nutriheuch_norm_tissues2$avg_percent,round,1)
+
+Norm_tissues_fig2<-ggplot(nutriheuch_norm_tissues2,aes(x=Cytotype2,y=avg_percent,fill=Tissue))+geom_bar(aes(y=avg_percent,x=Cytotype2,fill=Tissue),position = "stack",stat = "identity")+theme_bw()+facet_wrap(vars(Treatment2),nrow = 1)+theme(panel.background = element_blank(),panel.spacing.x = unit(0.1,"line"))+xlab("Cytotype")+ylab("Percent Allocation")+theme(strip.background = element_blank())+theme(axis.text.x=element_text(angle=0,hjust=0.5))+scale_y_continuous(breaks = scales::pretty_breaks(n = 4))+theme(strip.text.x = element_text(size = 20))+theme(axis.text = element_text(size = 18,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+theme(legend.title = element_text(face = 'bold',size = 20))+scale_fill_manual(values = c("darkgreen","darkorange","sienna4"))+geom_text(aes(x=Cytotype2,label=paste0(avg_percent2,"%")),color='white',position=position_stack(vjust = 0.5),size=6)
+
+Norm_tissues_fig2
+```
+
+```{r}
+above_x_rhizome<-ggplot(nutri_heuch_nogas,aes(x=rhizome_weight,y=normalized_aboveground_mass))+geom_point(aes(shape=Cytotype,color=Cytotype),shape=16,size=2)+geom_smooth(aes(color=Cytotype),method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("Rhizome Mass")+ylab("Aboveground Mass")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))+facet_wrap(~Treatment,scales = "free_x")
+
+above_x_rhizome
+```
+
+```{r}
+nutri_heuch_nogas$Treatment2<-factor(nutri_heuch_nogas$Treatment,levels = c("L","C","H"))
+
+totalxSLA<-ggplot(nutri_heuch_nogas,aes(x=avg_SLA,y=total_biomass_g))+geom_point(aes(shape=Cytotype,color=Cytotype),shape=16,size=2)+geom_smooth(aes(color=Cytotype),method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("Avg. SLA")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))+facet_wrap(~Treatment)
+
+totalxSLA
+```
+
+```{r}
+totalxDMC<-ggplot(nutri_heuch_nogas,aes(x=nutri_heuch_nogas$avg_DMC,y=total_biomass_g))+geom_point(aes(shape=Cytotype,color=Cytotype),shape=16,size=2)+geom_smooth(aes(color=Cytotype),method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("Avg. DMC")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))+facet_wrap(vars(Treatment2), scales = "free_x")
+
+totalxDMC
+```
+
+```{r}
+totalxAbove<-ggplot(nutri_heuch_nogas,aes(x=nutri_heuch_nogas$normalized_aboveground_mass,y=total_biomass_g))+geom_point(aes(shape=Cytotype,color=Cytotype),shape=16,size=2)+geom_smooth(aes(color=Cytotype),method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("Aboveground Mass (%)")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))+facet_wrap(vars(Treatment2),nrow = 1, scales = "free_x")
+
+totalxAbove
+```
+
+```{r}
+totalxRhizo<-ggplot(nutri_heuch_nogas,aes(x=nutri_heuch_nogas$normalized_rhizome_mass,y=total_biomass_g))+geom_point(aes(shape=Cytotype,color=Cytotype),shape=16,size=2)+geom_smooth(aes(color=Cytotype),method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("Rhizome Mass (%)")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))+facet_wrap(vars(Treatment2),nrow = 1, scales = "free_x")
+
+totalxRhizo
+```
+
+```{r}
+nutri_heuch_nogas$Treatment<-factor(nutri_heuch_nogas$Treatment,levels = c("L","C","H"))
+
+biomassXSLA<-ggplot(nutri_heuch_nogas,aes(avg_SLA,y=total_biomass_g))+geom_point(aes(shape=Cytotype,color=Cytotype),shape=16,size=2)+geom_smooth(aes(color=Cytotype),method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("SLA")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))+facet_wrap(~Treatment)
+
+biomassXSLA
+
+biomassXDMC<-ggplot(nutri_heuch_nogas,aes(avg_DMC,y=total_biomass_g))+geom_point(aes(shape=Cytotype,color=Cytotype),shape=16,size=2)+geom_smooth(aes(color=Cytotype),method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("DMC")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))+facet_wrap(~Treatment)
+
+biomassXDMC
+
+biomassXchlorophyl<-ggplot(nutri_heuch_nogas,aes(avg_chlorophyll,y=total_biomass_g))+geom_point(aes(shape=Cytotype,color=Cytotype),shape=16,size=2)+geom_smooth(aes(color=Cytotype),method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("Leaf Chlorophyll ")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))+facet_wrap(~Treatment)
+
+biomassXchlorophyl
+
+biomassXaboveground<-ggplot(nutri_heuch_nogas,aes(normalized_aboveground_mass,y=total_biomass_g))+geom_point(aes(shape=Cytotype,color=Cytotype),shape=16,size=2)+geom_smooth(aes(color=Cytotype),method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("Allocation Aboveground %")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))+facet_wrap(~Treatment,scales = "free_x")
+
+biomassXaboveground
+
+biomassXstorage<-ggplot(nutri_heuch_nogas,aes(normalized_rhizome_mass,y=total_biomass_g))+geom_point(aes(shape=Cytotype,color=Cytotype),shape=16,size=2)+geom_smooth(aes(color=Cytotype),method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("Allocation Storage %")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))+facet_wrap(~Treatment,scales = "free_x")
+
+biomassXstorage
+
+biomassXfineRoot<-ggplot(nutri_heuch_nogas,aes(normalized_fine_roots_mass,y=total_biomass_g))+geom_point(aes(shape=Cytotype,color=Cytotype),shape=16,size=2)+geom_smooth(aes(color=Cytotype),method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("Allocation Fine Roots %")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))+facet_wrap(~Treatment,scales = "free_x")
+
+biomassXfineRoot
+```
+
+```{r}
+biomassXSLA_noPloid<-ggplot(nutri_heuch_nogas,aes(avg_SLA,y=total_biomass_g))+geom_point(aes(color=Cytotype),shape=16,size=2)+geom_smooth(method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("SLA")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))+facet_wrap(~Treatment)
+
+biomassXSLA_noPloid
+
+biomassXDMC_noPloid<-ggplot(nutri_heuch_nogas,aes(x=avg_DMC,y=total_biomass_g))+geom_point(aes(color=Cytotype),shape=16,size=2)+geom_smooth(method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("LDMC")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 14,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 14,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 0.5))+theme(legend.text = element_text(size = 12))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 14))+facet_wrap(~Treatment2,scales = "free_x")+theme(legend.position = "top")
+
+biomassXDMC_noPloid
+
+biomassXChlor_noPloid<-ggplot(nutri_heuch_nogas,aes(x=avg_chlorophyll,y=total_biomass_g))+geom_point(aes(color=Cytotype),shape=16,size=2)+geom_smooth(method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("Chlorophyll Flouresence")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))+facet_wrap(~Treatment,scales = "free_x")
+
+biomassXChlor_noPloid
+
+biomassXabove_noPloid<-ggplot(nutri_heuch_nogas,aes(x=normalized_aboveground_mass,y=total_biomass_g))+geom_point(aes(color=Cytotype),shape=16,size=2)+geom_smooth(method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("Aboveground Allocation (%)")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 14,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 14,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 0.5))+theme(legend.text = element_text(size = 12))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 14))+facet_wrap(~Treatment2,scales = "free_x")+theme(legend.position = "top")
+
+biomassXabove_noPloid
+
+biomassXrhizo_noPloid<-ggplot(nutri_heuch_nogas,aes(x=normalized_rhizome_mass,y=total_biomass_g))+geom_point(aes(color=Cytotype),shape=16,size=2)+geom_smooth(method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("Rhizome Allocation (%)")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 14,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 14,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 0.5))+theme(legend.text = element_text(size = 12))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 14))+facet_wrap(~Treatment2,scales = "free_x")+theme(legend.position = "top")
+
+biomassXrhizo_noPloid
+
+biomassXfineroot_noPloid<-ggplot(nutri_heuch_nogas,aes(x=normalized_fine_roots_mass,y=total_biomass_g))+geom_point(aes(color=Cytotype),shape=16,size=2)+geom_smooth(method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("Fine Root Allocation (%)")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))+facet_wrap(~Treatment)
+
+biomassXfineroot_noPloid
+
+nutri_heuch_roots$Treatment<-factor(nutri_heuch_roots$Treatment,levels = c("L","C","H"))
+
+biomassXrootDiameter_noPloid<-ggplot(nutri_heuch_roots,aes(x=avg_root_diamter_mm,y=total_biomass_g))+geom_point(aes(color=Cytotype),shape=16,size=2)+geom_smooth(method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("Fine Root Diameter (mm)")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))+facet_wrap(~Treatment)
+
+biomassXrootDiameter_noPloid
+
+biomassXabovePhos_noPloid<-ggplot(nutriheuch_phos,aes(x=above_percent_phorphorus,y=total_biomass_g))+geom_point(aes(color=Cytotype),shape=16,size=2)+geom_smooth(method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("Aboveground % Phosphorus")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 20,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 20,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 1))+theme(legend.text = element_text(size = 14))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 16))+facet_wrap(~Treatment2,scales = "free_x")
+
+biomassXabovePhos_noPloid
+
+
+biomassXaboveNitro_noPloid<-ggplot(heuch_CN_nogas,aes(x=above_percent_N,y=total_biomass_g))+geom_point(aes(color=Cytotype),shape=16,size=2)+geom_smooth(method = lm, se = FALSE,show.guide = FALSE)+scale_color_manual(values = c("black","black"))+xlab("Aboveground % Nitrogen")+ylab("Total Biomass (g)")+theme_bw()+theme(strip.text.x = element_text(face='bold',size = 20))+theme(axis.text = element_text( size = 14,colour = 'black'))+theme(axis.title = element_text(face = 'bold', size = 14,colour = 'black'))+theme(legend.box.background = element_rect(colour = 'black',size = 0.5))+theme(legend.text = element_text(size = 12))+scale_color_manual(values = c("darkgoldenrod3","limegreen","darkgreen"))+scale_y_continuous(breaks = scales::pretty_breaks(n = 5))+theme(legend.title = element_text(face = "bold",size = 14))+facet_wrap(~Treatment2,scales = "free_x")+theme(legend.position = "top")
+
+biomassXaboveNitro_noPloid
+```
+
+```{r}
+#nutri_heuch_nogas %>%
+ # group_by(Treatment) %>%
+  #dplyr::summarize(cor=cor(total_biomass_g, avg_SLA,use="complete.obs"))
+
+library(correlation)
+
+pearson_cor<-nutri_heuch_nogas %>%
+  dplyr::select(total_biomass_g,avg_SLA, avg_DMC, avg_chlorophyll, normalized_aboveground_mass, normalized_fine_roots_mass, normalized_rhizome_mass) %>%
+  dplyr::group_by(nutri_heuch_nogas$Treatment) %>%
+  correlation()
+
+nutri_heuch_roots %>%
+  dplyr::group_by(Treatment) %>%
+  dplyr::summarize(COR=cor(avg_root_diamter_mm,total_biomass_g,use="complete.obs"))
+
+pearson_cor_roots<-nutri_heuch_roots %>%
+  dplyr::select(avg_root_diamter_mm,total_biomass_g) %>%
+  dplyr::group_by(nutri_heuch_roots$Treatment) %>%
+  correlation()
+pearson_cor_roots
+
+pearson_cor_phosphorus<-nutriheuch_phos %>%
+  dplyr::select(total_biomass_g,above_percent_phorphorus,below_percent_phorphorus) %>%
+  dplyr::group_by(nutriheuch_phos$Treatment) %>%
+  correlation()
+
+pearson_cor_phosphorus
+
+pearson_cor_nitrogen<-heuch_CN_nogas %>%
+  dplyr::select(total_biomass_g,above_percent_N,below_percent_N) %>%
+  dplyr::group_by(heuch_CN_nogas$Treatment) %>%
+  correlation()
+
+pearson_cor_nitrogen
+```
+
